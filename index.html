@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pollos Don Juan - Control de Producción</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* CSS Básico (Mismo estilo anterior) */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        header {
+            text-align: center;
+            padding: 10px;
+            background-color: #388e3c; /* Verde Avícola */
+            color: white;
+            margin-bottom: 30px;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #1e88e5; /* Azul para títulos */
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 10px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        /* Estilos para la tabla de configuración de galpones */
+        #galpones-config-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        #galpones-config-table th, #galpones-config-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        #galpones-config-table th {
+            background-color: #f2f2f2;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        #btn-calcular {
+            background-color: #fbc02d;
+            color: #333;
+        }
+        #btn-guardar {
+            background-color: #007bff;
+            color: white;
+            display: none;
+        }
+        #btn-config-galpones, #btn-registrar-mortalidad {
+            background-color: #5cb85c;
+            color: white;
+            width: 100%;
+            margin-top: 10px;
+        }
+        #btn-config-galpones:hover, #btn-registrar-mortalidad:hover {
+            background-color: #4cae4c;
+        }
+        #resultados, #resultados_mortalidad {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f5e9;
+            border: 1px solid #a5d6a7;
+            border-radius: 4px;
+        }
+        .resultado-item span {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1 id="farm_title">🐔 Granja Avícola Pollos Don Juan 📊</h1>
+        <p>Control de Producción, Crecimiento y Mortalidad</p>
+    </header>
+
+    <div class="container">
+        
+        <h2>1. Configuración Inicial de Lotes y Galpones</h2>
+        <p><strong style="color: red;">¡Debe completar esta sección primero!</strong></p>
+
+        <div class="input-group">
+            <label for="farm_name">Nombre de la Granja:</label>
+            <input type="text" id="farm_name" value="Granja Avícola Pollos Don Juan" required>
+        </div>
+        
+        <div class="input-group">
+            <label for="num_galpones">Cantidad de Galpones en la Granja:</label>
+            <input type="number" id="num_galpones" min="1" value="1" required oninput="generarCamposGalpones()">
+        </div>
+
+        <div id="campos-galpones-container">
+            <table id="galpones-config-table">
+                <thead>
+                    <tr>
+                        <th>Galpón (ID)</th>
+                        <th>Cantidad Inicial de Aves</th>
+                    </tr>
+                </thead>
+                <tbody id="galpones-tbody">
+                    <tr>
+                        <td>Galpón 1 (G1)</td>
+                        <td><input type="number" min="1" class="input-aves" id="aves_G1" placeholder="Ej: 20000" required></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <button id="btn-config-galpones" onclick="guardarConfiguracion()">Guardar Configuración de Lotes</button>
+
+        <p id="config-status" style="margin-top: 10px; color: red; font-weight: bold;">⚠️ Ingrese y guarde la configuración para comenzar.</p>
+    </div>
+
+    <div class="container">
+        <h2>2. Control de Peso Semanal</h2>
+        <p>Seleccione el galpón configurado y registre los datos de pesaje para el control de crecimiento.</p>
+        
+        <div class="input-group">
+            <label for="galpon">Seleccionar Galpón:</label>
+            <select id="galpon" disabled>
+                <option value="" disabled selected>Primero configure los galpones (Sección 1)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label for="semana">Semana de Vida:</label>
+            <select id="semana">
+                <option value="1">Semana 1 (7 Días)</option>
+                <option value="2">Semana 2 (14 Días)</option>
+                <option value="3">Semana 3 (21 Días)</option>
+                <option value="4">Semana 4 (28 Días)</option>
+                <option value="5">Semana 5 (35 Días)</option>
+                <option value="6">Semana 6 (42 Días)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label for="aves_pesadas">Cantidad de Aves Pesadas (Muestra):</label>
+            <input type="number" id="aves_pesadas" min="1" required placeholder="Ej: 100">
+        </div>
+
+        <div class="input-group">
+            <label for="peso_total">Peso Total de la Muestra (en gramos):</label>
+            <input type="number" id="peso_total" min="1" required placeholder="Ej: 155000">
+        </div>
+
+        <div class="btn-group">
+            <button id="btn-calcular" onclick="calcularCrecimiento()">Calcular Peso y Porcentaje</button>
+            <button id="btn-guardar" onclick="generarPDFPeso()">📥 Guardar Reporte de Peso (PDF)</button>
+        </div>
+
+        <div id="resultados" style="display: none;">
+            <h3>Resultados del Pesaje</h3>
+            <div class="resultado-item">Galpón Seleccionado: <span id="res_galpon"></span></div>
+            <div class="resultado-item">Aves Vivas (Actual): <span id="res_aves_actuales"></span></div>
+            <div class="resultado-item">Semana de Vida: <span id="res_semana"></span></div>
+            <hr>
+            <div class="resultado-item">Peso Promedio Real: <span id="promedio_real"></span> gramos</div>
+            <div class="resultado-item">Diferencia con Estándar: <span id="diferencia_gramos"></span> gramos</div>
+            <div class="resultado-item">
+                <p><strong>Porcentaje de Subida/Baja de Peso:</strong> <span id="porcentaje_subida"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>3. Control de Mortalidad Semanal</h2>
+        <p>Registre las pérdidas de la semana para actualizar el inventario y calcular el porcentaje de mortalidad.</p>
+
+        <div class="input-group">
+            <label for="galpon_mortalidad">Seleccionar Galpón:</label>
+            <select id="galpon_mortalidad" disabled>
+                <option value="" disabled selected>Primero configure los galpones (Sección 1)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label for="semana_mortalidad">Semana a Registrar (Semana de Vida):</label>
+            <select id="semana_mortalidad">
+                <option value="1">Semana 1</option>
+                <option value="2">Semana 2</option>
+                <option value="3">Semana 3</option>
+                <option value="4">Semana 4</option>
+                <option value="5">Semana 5</option>
+                <option value="6">Semana 6</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label for="mortalidad_semanal">Aves Muertas en la Semana:</label>
+            <input type="number" id="mortalidad_semanal" min="0" value="0" required placeholder="Ej: 50">
+        </div>
+
+        <div class="btn-group">
+            <button id="btn-registrar-mortalidad" onclick="registrarMortalidad()">Registrar Mortalidad</button>
+            <button id="btn-guardar-mortalidad" onclick="generarPDFMortalidad()" style="display: none; background-color: #dc3545; color: white;">📥 Guardar Reporte de Mortalidad (PDF)</button>
+        </div>
+
+        <div id="resultados_mortalidad" style="display: none;">
+            <h3>Resultados de Mortalidad</h3>
+            <div class="resultado-item">Galpón: <span id="res_mort_galpon"></span></div>
+            <div class="resultado-item">Aves Iniciales: <span id="res_mort_inicial"></span></div>
+            <hr>
+            <div class="resultado-item">Pérdidas de la Semana: <span id="res_mort_semana_num"></span></div>
+            <div class="resultado-item">Mortalidad Semanal: <span id="res_mort_porc_semanal" style="color: red;"></span></div>
+            <div class="resultado-item">Mortalidad Acumulada (Total): <span id="res_mort_porc_acumulado" style="color: red;"></span></div>
+            <hr>
+            <div class="resultado-item"><strong>Aves Vivas Actuales:</strong> <span id="res_mort_actual" style="color: green;"></span></div>
+        </div>
+    </div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+        
+        // TABLA ESTÁNDAR DE PESOS DE POLLOS DON JUAN (en gramos)
+        const tablaEstandar = {
+            1: 170, 2: 450, 3: 900, 4: 1550, 5: 2300, 6: 3050
+        };
+
+        // Variables globales de datos
+        let farmName = "Granja Avícola Pollos Don Juan"; // Valor inicial
+        let galponesData = {}; 
+        let datosCalculadosPeso = {};
+        let datosCalculadosMortalidad = {};
+
+        // 1. Genera dinámicamente los campos de entrada para cada galpón
+        function generarCamposGalpones() {
+            const numGalpones = parseInt(document.getElementById('num_galpones').value);
+            const tbody = document.getElementById('galpones-tbody');
+            tbody.innerHTML = '';
+            
+            if (numGalpones < 1 || isNaN(numGalpones)) {
+                tbody.innerHTML = '<tr><td colspan="2">Ingrese un número válido de galpones.</td></tr>';
+                return;
+            }
+
+            for (let i = 1; i <= numGalpones; i++) {
+                const galponID = `G${i}`;
+                const row = `
+                    <tr>
+                        <td>Galpón ${i} (${galponID})</td>
+                        <td><input type="number" min="1" class="input-aves" id="aves_${galponID}" placeholder="Ej: 20000" required></td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', generarCamposGalpones);
+
+        // 2. Guarda la configuración, incluyendo el nombre de la granja
+        function guardarConfiguracion() {
+            // Capturar nombre de la granja
+            const newFarmName = document.getElementById('farm_name').value.trim();
+            if (!newFarmName) {
+                alert('Debe ingresar un nombre para la Granja.');
+                return;
+            }
+            farmName = newFarmName;
+            document.getElementById('farm_title').innerHTML = `🐔 ${farmName} 📊`;
+
+
+            const inputsAves = document.querySelectorAll('.input-aves');
+            galponesData = {};
+            let todoValido = true;
+            let totalAves = 0;
+
+            inputsAves.forEach(input => {
+                const galponID = input.id.replace('aves_', '');
+                const cantidadAves = parseInt(input.value);
+
+                if (isNaN(cantidadAves) || cantidadAves <= 0) {
+                    todoValido = false;
+                    return;
+                }
+                
+                // Inicializa la estructura de datos o mantiene el estado actual
+                if (!galponesData[galponID]) {
+                    galponesData[galponID] = {
+                        initial: cantidadAves,
+                        current: cantidadAves,
+                        mortalidadAcumulada: 0,
+                        mortalidadHistory: {} 
+                    };
+                } else {
+                    // Si ya existe, solo actualiza la cantidad inicial (si es necesario)
+                    // En un sistema real, esto sería más complejo, pero para este prototipo se mantiene simple
+                    if (galponesData[galponID].initial !== cantidadAves) {
+                        // Recalcula el estado actual si la base inicial cambia
+                        const factor = cantidadAves / galponesData[galponID].initial;
+                        galponesData[galponID].initial = cantidadAves;
+                        // Nota: El current y acumulada se resetearían o se ajustarían, lo reseteamos por simplicidad
+                        galponesData[galponID].current = cantidadAves;
+                        galponesData[galponID].mortalidadAcumulada = 0;
+                        galponesData[galponID].mortalidadHistory = {};
+                    }
+                }
+                totalAves += galponesData[galponID].initial;
+            });
+
+            if (!todoValido) {
+                document.getElementById('config-status').textContent = '⚠️ ¡Error! Ingrese una cantidad de aves válida y mayor a cero para todos los galpones.';
+                document.getElementById('config-status').style.color = 'red';
+                return;
+            }
+
+            // Actualizar los menús desplegables (Secciones 2 y 3)
+            const selectGalponPeso = document.getElementById('galpon');
+            const selectGalponMort = document.getElementById('galpon_mortalidad');
+            
+            [selectGalponPeso, selectGalponMort].forEach(select => {
+                select.innerHTML = ''; 
+                for (const galponID in galponesData) {
+                    const avesActuales = galponesData[galponID].current.toLocaleString();
+                    const option = document.createElement('option');
+                    option.value = galponID;
+                    option.textContent = `${galponID} (Actualmente: ${avesActuales} aves)`;
+                    select.appendChild(option);
+                }
+                select.disabled = false;
+            });
+
+            document.getElementById('config-status').textContent = `✅ Configuración de ${farmName} guardada. Total de galpones: ${Object.keys(galponesData).length}. Total de aves iniciales: ${totalAves.toLocaleString()}.`;
+            document.getElementById('config-status').style.color = 'green';
+        }
+
+        // 3. Lógica para Registrar Mortalidad (Mismo código anterior)
+        function registrarMortalidad() {
+            const galpon = document.getElementById('galpon_mortalidad').value;
+            const semana = parseInt(document.getElementById('semana_mortalidad').value);
+            const mortalidad = parseInt(document.getElementById('mortalidad_semanal').value);
+
+            if (!galpon || galponesData[galpon] === undefined) {
+                alert('Debe seleccionar y guardar la configuración de un galpón.');
+                return;
+            }
+            if (isNaN(mortalidad) || mortalidad < 0) {
+                alert('La cantidad de aves muertas debe ser un número positivo.');
+                return;
+            }
+            
+            const data = galponesData[galpon];
+            
+            // 1. Revertir el estado previo de la semana (si existe) para el cálculo correcto
+            const mortalidadPrevia = data.mortalidadHistory[semana] || 0;
+            data.current += mortalidadPrevia;
+            data.mortalidadAcumulada -= mortalidadPrevia;
+
+            // 2. Aplicar el nuevo registro
+            const avesAlInicioDeSemana = data.current; 
+            if (mortalidad > avesAlInicioDeSemana) {
+                alert('ERROR: La mortalidad registrada excede la cantidad de aves vivas actuales.');
+                data.current -= mortalidadPrevia;
+                data.mortalidadAcumulada += mortalidadPrevia;
+                return;
+            }
+
+            data.current -= mortalidad;
+            data.mortalidadAcumulada += mortalidad;
+            data.mortalidadHistory[semana] = mortalidad;
+            
+            // 3. Cálculos de Porcentaje
+            const mortSemanalPorc = (mortalidad / avesAlInicioDeSemana) * 100;
+            const mortAcumuladaPorc = (data.mortalidadAcumulada / data.initial) * 100;
+
+            // Almacenar para PDF
+            datosCalculadosMortalidad = {
+                galpon,
+                semana,
+                inicial: data.initial.toLocaleString(),
+                muertasSemana: mortalidad.toLocaleString(),
+                actual: data.current.toLocaleString(),
+                mortSemanal: mortSemanalPorc.toFixed(2),
+                mortAcumulada: mortAcumuladaPorc.toFixed(2)
+            };
+
+            // 4. Mostrar Resultados y actualizar el select de galpones
+            document.getElementById('res_mort_galpon').textContent = galpon;
+            document.getElementById('res_mort_inicial').textContent = datosCalculadosMortalidad.inicial;
+            document.getElementById('res_mort_semana_num').textContent = datosCalculadosMortalidad.muertasSemana;
+            document.getElementById('res_mort_porc_semanal').textContent = datosCalculadosMortalidad.mortSemanal + '%';
+            document.getElementById('res_mort_porc_acumulado').textContent = datosCalculadosMortalidad.mortAcumulada + '%';
+            document.getElementById('res_mort_actual').textContent = datosCalculadosMortalidad.actual;
+            document.getElementById('resultados_mortalidad').style.display = 'block';
+            document.getElementById('btn-guardar-mortalidad').style.display = 'inline-block';
+
+            // 5. Refrescar el estado en el menú de Peso (Sección 2)
+            guardarConfiguracion(); 
+        }
+
+        // 4. Lógica para Calcular Crecimiento (Mismo código anterior)
+        function calcularCrecimiento() {
+            const galpon = document.getElementById('galpon').value;
+            const semana = parseInt(document.getElementById('semana').value);
+            const avesPesadas = parseFloat(document.getElementById('aves_pesadas').value);
+            const pesoTotal = parseFloat(document.getElementById('peso_total').value);
+
+            if (!galpon || galponesData[galpon] === undefined) {
+                alert('Debe seleccionar y guardar la configuración de un galpón.');
+                return;
+            }
+            if (isNaN(avesPesadas) || avesPesadas <= 0 || isNaN(pesoTotal) || pesoTotal <= 0) {
+                alert('Por favor, ingrese valores válidos y mayores a cero en los campos de pesaje.');
+                return;
+            }
+            
+            const data = galponesData[galpon];
+            const pesoPromedioReal = pesoTotal / avesPesadas;
+            const pesoEstandar = tablaEstandar[semana];
+
+            if (!pesoEstandar) {
+                alert('No hay un peso estándar definido para esta semana.');
+                return;
+            }
+
+            const diferenciaGramos = pesoPromedioReal - pesoEstandar;
+            const porcentajeSubida = (diferenciaGramos / pesoEstandar) * 100;
+
+            // Almacenar resultados para PDF
+            datosCalculadosPeso = {
+                galpon,
+                avesActuales: data.current.toLocaleString(),
+                semana: semana,
+                promedioReal: pesoPromedioReal.toFixed(2),
+                estandar: pesoEstandar.toFixed(2),
+                diferencia: diferenciaGramos.toFixed(2),
+                porcentaje: porcentajeSubida.toFixed(2)
+            };
+            
+            // Mostrar Resultados en la Interfaz
+            document.getElementById('res_galpon').textContent = galpon;
+            document.getElementById('res_aves_actuales').textContent = datosCalculadosPeso.avesActuales;
+            document.getElementById('res_semana').textContent = datosCalculadosPeso.semana;
+            document.getElementById('promedio_real').textContent = datosCalculadosPeso.promedioReal;
+            document.getElementById('promedio_estandar').textContent = datosCalculadosPeso.estandar;
+            document.getElementById('diferencia_gramos').textContent = datosCalculadosPeso.diferencia;
+            
+            const porcentajeElement = document.getElementById('porcentaje_subida');
+            porcentajeElement.textContent = datosCalculadosPeso.porcentaje + '%';
+
+            if (porcentajeSubida >= 0) {
+                porcentajeElement.style.color = 'green';
+                porcentajeElement.textContent = '+' + porcentajeElement.textContent;
+            } else {
+                porcentajeElement.style.color = 'red';
+            }
+
+            document.getElementById('resultados').style.display = 'block';
+            document.getElementById('btn-guardar').style.display = 'inline-block';
+        }
+
+        // 5. Lógica para Generar PDF de Peso (ACTUALIZADA con farmName)
+        function generarPDFPeso() {
+            if (Object.keys(datosCalculadosPeso).length === 0) {
+                alert('Primero debe realizar un cálculo de peso.');
+                return;
+            }
+
+            const data = datosCalculadosPeso;
+            const doc = new jsPDF();
+            const margen = 15;
+            let linea = 15;
+
+            doc.setFontSize(16);
+            doc.text(`Reporte de Pesaje - ${farmName}`, margen, linea); // Usa farmName
+            linea += 7;
+            doc.setFontSize(10);
+            doc.text(`Fecha del Reporte: ${new Date().toLocaleDateString()}`, margen, linea);
+            linea += 10;
+            doc.line(margen, linea, 195, linea); 
+            linea += 7;
+
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text(`GALPÓN: ${data.galpon}`, margen, linea);
+            linea += 7;
+            doc.text(`AVES VIVAS (Actual): ${data.avesActuales}`, margen, linea);
+            linea += 7;
+            doc.text(`SEMANA DE VIDA: ${data.semana}`, margen, linea);
+            linea += 10;
+
+            doc.setFont(undefined, 'normal');
+            doc.text(`Peso Promedio Real: ${data.promedioReal} gramos`, margen, linea);
+            linea += 7;
+            doc.text(`Peso Estándar Don Juan: ${data.estandar} gramos`, margen, linea);
+            linea += 10;
+            
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text(`Diferencia de Peso: ${data.diferencia} gramos`, margen, linea);
+            linea += 7;
+            doc.text(`Crecimiento sobre Estándar: ${data.porcentaje}%`, margen, linea);
+            
+            const nombreArchivo = `Reporte_Pesaje_${data.galpon}_Semana_${data.semana}.pdf`;
+            doc.save(nombreArchivo);
+        }
+
+        // 6. Lógica para Generar PDF de Mortalidad (ACTUALIZADA con farmName)
+        function generarPDFMortalidad() {
+            if (Object.keys(datosCalculadosMortalidad).length === 0) {
+                alert('Primero debe registrar la mortalidad.');
+                return;
+            }
+
+            const data = datosCalculadosMortalidad;
+            const doc = new jsPDF();
+            const margen = 15;
+            let linea = 15;
+
+            doc.setFontSize(16);
+            doc.text(`Reporte de Mortalidad Semanal - ${farmName}`, margen, linea); // Usa farmName
+            linea += 7;
+            doc.setFontSize(10);
+            doc.text(`Fecha del Registro: ${new Date().toLocaleDateString()}`, margen, linea);
+            linea += 10;
+            doc.line(margen, linea, 195, linea); 
+            linea += 7;
+
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text(`GALPÓN: ${data.galpon}`, margen, linea);
+            linea += 7;
+            doc.text(`SEMANA REGISTRADA: ${data.semana}`, margen, linea);
+            linea += 10;
+
+            doc.setFont(undefined, 'normal');
+            doc.text(`Aves Iniciales del Lote: ${data.inicial}`, margen, linea);
+            linea += 7;
+            doc.text(`Aves Muertas en la Semana ${data.semana}: ${data.muertasSemana}`, margen, linea);
+            linea += 7;
+            doc.text(`Mortalidad Semanal: ${data.mortSemanal}%`, margen, linea);
+            linea += 10;
+
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text(`Mortalidad Acumulada Total: ${data.mortAcumulada}%`, margen, linea);
+            linea += 7;
+            doc.text(`AVES VIVAS ACTUALES: ${data.actual}`, margen, linea);
+            
+            const nombreArchivo = `Reporte_Mortalidad_${data.galpon}_Semana_${data.semana}.pdf`;
+            doc.save(nombreArchivo);
+        }
+    </script>
+
+</body>
+</html>
