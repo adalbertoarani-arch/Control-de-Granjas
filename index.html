@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pollos Don Juan - Control de Producción</title>
+    <title id="page_title">Pollos Don Juan - Control de Producción</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        /* CSS Básico (Mismo estilo anterior) */
+        /* --- Estilos Base para Escritorio --- */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -65,6 +65,7 @@
             display: flex;
             gap: 10px;
             margin-top: 20px;
+            flex-wrap: wrap; 
         }
         button {
             padding: 10px 15px;
@@ -89,6 +90,10 @@
             width: 100%;
             margin-top: 10px;
         }
+        #btn-reporte-completo {
+            background-color: #3f51b5;
+            color: white;
+        }
         #btn-config-galpones:hover, #btn-registrar-mortalidad:hover {
             background-color: #4cae4c;
         }
@@ -102,6 +107,56 @@
         .resultado-item span {
             font-weight: bold;
         }
+
+        /* --- Estilos para Dispositivos Móviles (Media Query) --- */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            h1 {
+                font-size: 1.5em;
+            }
+            h2 {
+                font-size: 1.2em;
+                padding-bottom: 5px;
+            }
+            .btn-group {
+                flex-direction: column; 
+                gap: 8px;
+            }
+            button, .input-group input, .input-group select {
+                width: 100% !important; 
+                box-sizing: border-box;
+            }
+            #galpones-config-table, #galpones-config-table thead, #galpones-config-table tbody, #galpones-config-table th, #galpones-config-table td, #galpones-config-table tr {
+                display: block; 
+                width: 100%;
+            }
+            #galpones-config-table tr {
+                margin-bottom: 10px;
+                border: 1px solid #ccc;
+            }
+            #galpones-config-table td {
+                text-align: right;
+                padding-left: 50%;
+                position: relative;
+            }
+            #galpones-config-table td::before {
+                content: attr(data-label); 
+                position: absolute;
+                left: 0;
+                width: 50%;
+                padding-left: 10px;
+                font-weight: bold;
+                text-align: left;
+            }
+            #galpones-config-table input {
+                margin-bottom: 0; 
+                border: none;
+                padding: 0;
+                text-align: right;
+            }
+        }
     </style>
 </head>
 <body>
@@ -114,7 +169,7 @@
     <div class="container">
         
         <h2>1. Configuración Inicial de Lotes y Galpones</h2>
-        <p><strong style="color: red;">¡Debe completar esta sección primero!</strong></p>
+        <p><strong style="color: red;">⚠️ Los datos se guardarán automáticamente en tu navegador.</strong></p>
 
         <div class="input-group">
             <label for="farm_name">Nombre de la Granja:</label>
@@ -136,14 +191,17 @@
                 </thead>
                 <tbody id="galpones-tbody">
                     <tr>
-                        <td>Galpón 1 (G1)</td>
-                        <td><input type="number" min="1" class="input-aves" id="aves_G1" placeholder="Ej: 20000" required></td>
+                        <td data-label="Galpón (ID)">Galpón 1 (G1)</td>
+                        <td data-label="Aves Iniciales"><input type="number" min="1" class="input-aves" id="aves_G1" placeholder="Ej: 20000" required></td>
                     </tr>
                 </tbody>
             </table>
         </div>
 
-        <button id="btn-config-galpones" onclick="guardarConfiguracion()">Guardar Configuración de Lotes</button>
+        <div class="btn-group" style="flex-direction: column; gap: 10px;">
+            <button id="btn-config-galpones" onclick="guardarConfiguracion()">Guardar Configuración de Lotes</button>
+            <button id="btn-reporte-completo" onclick="generarReporteCompletoPDF()" style="background-color: #3f51b5; color: white; margin-top: 10px;">📋 Generar Reporte COMPLETO (PDF)</button>
+        </div>
 
         <p id="config-status" style="margin-top: 10px; color: red; font-weight: bold;">⚠️ Ingrese y guarde la configuración para comenzar.</p>
     </div>
@@ -255,10 +313,97 @@
         };
 
         // Variables globales de datos
-        let farmName = "Granja Avícola Pollos Don Juan"; // Valor inicial
+        let farmName = "Granja Avícola Pollos Don Juan"; 
         let galponesData = {}; 
         let datosCalculadosPeso = {};
         let datosCalculadosMortalidad = {};
+
+        // --- FUNCIONES DE ALMACENAMIENTO ---
+
+        // Función para guardar datos en LocalStorage
+        function guardarDatosEnLocalStorage() {
+            localStorage.setItem('farmName', farmName);
+            localStorage.setItem('galponesData', JSON.stringify(galponesData));
+        }
+
+        // Función para actualizar los menús desplegables
+        function actualizarSelectoresGalpones() {
+            const selectGalponPeso = document.getElementById('galpon');
+            const selectGalponMort = document.getElementById('galpon_mortalidad');
+            
+            [selectGalponPeso, selectGalponMort].forEach(select => {
+                select.innerHTML = ''; 
+                // Añadir la opción por defecto
+                const defaultOption = document.createElement('option');
+                defaultOption.value = "";
+                defaultOption.textContent = "Seleccione un galpón";
+                defaultOption.disabled = true;
+                defaultOption.selected = true;
+                select.appendChild(defaultOption);
+
+                for (const galponID in galponesData) {
+                    const avesActuales = galponesData[galponID].current.toLocaleString();
+                    const option = document.createElement('option');
+                    option.value = galponID;
+                    option.textContent = `${galponID} (Actualmente: ${avesActuales} aves)`;
+                    select.appendChild(option);
+                }
+                select.disabled = false;
+            });
+        }
+        
+        // Función principal para cargar datos al inicio
+        function cargarDatos() {
+            const savedFarmName = localStorage.getItem('farmName');
+            const savedGalponesData = localStorage.getItem('galponesData');
+
+            if (savedFarmName) {
+                farmName = savedFarmName;
+                document.getElementById('farm_title').innerHTML = `🐔 ${farmName} 📊`;
+                document.getElementById('page_title').textContent = `${farmName} - Control de Producción`;
+                document.getElementById('farm_name').value = farmName;
+            }
+
+            if (savedGalponesData) {
+                galponesData = JSON.parse(savedGalponesData);
+                
+                // 1. Restaurar el input de cantidad de galpones
+                const numGalpones = Object.keys(galponesData).length;
+                document.getElementById('num_galpones').value = numGalpones;
+
+                // 2. Regenerar inputs y pre-llenarlos (incluye data-label para responsivo)
+                const tbody = document.getElementById('galpones-tbody');
+                tbody.innerHTML = '';
+
+                for (const galponID in galponesData) {
+                    const i = galponID.replace('G', '');
+                    const initialAves = galponesData[galponID].initial;
+                    const row = `
+                        <tr>
+                            <td data-label="Galpón (ID)">Galpón ${i} (${galponID})</td>
+                            <td data-label="Aves Iniciales"><input type="number" min="1" class="input-aves" id="aves_${galponID}" placeholder="Ej: 20000" value="${initialAves}" required></td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                }
+
+                // 3. Actualizar estado y selectores
+                const totalAves = Object.values(galponesData).reduce((sum, data) => sum + data.initial, 0);
+                document.getElementById('config-status').textContent = `✅ Configuración de ${farmName} cargada y guardada. Total de galpones: ${numGalpones}. Total de aves iniciales: ${totalAves.toLocaleString()}.`;
+                document.getElementById('config-status').style.color = 'green';
+                
+                actualizarSelectoresGalpones(); 
+                
+            } else {
+                // Si no hay datos guardados, inicia la interfaz por defecto
+                generarCamposGalpones();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', cargarDatos);
+
+
+        // --- FUNCIONES DE INTERFAZ Y LÓGICA ---
 
         // 1. Genera dinámicamente los campos de entrada para cada galpón
         function generarCamposGalpones() {
@@ -275,19 +420,16 @@
                 const galponID = `G${i}`;
                 const row = `
                     <tr>
-                        <td>Galpón ${i} (${galponID})</td>
-                        <td><input type="number" min="1" class="input-aves" id="aves_${galponID}" placeholder="Ej: 20000" required></td>
+                        <td data-label="Galpón (ID)">Galpón ${i} (${galponID})</td>
+                        <td data-label="Aves Iniciales"><input type="number" min="1" class="input-aves" id="aves_${galponID}" placeholder="Ej: 20000" required></td>
                     </tr>
                 `;
                 tbody.innerHTML += row;
             }
         }
 
-        document.addEventListener('DOMContentLoaded', generarCamposGalpones);
-
         // 2. Guarda la configuración, incluyendo el nombre de la granja
         function guardarConfiguracion() {
-            // Capturar nombre de la granja
             const newFarmName = document.getElementById('farm_name').value.trim();
             if (!newFarmName) {
                 alert('Debe ingresar un nombre para la Granja.');
@@ -295,10 +437,11 @@
             }
             farmName = newFarmName;
             document.getElementById('farm_title').innerHTML = `🐔 ${farmName} 📊`;
+            document.getElementById('page_title').textContent = `${farmName} - Control de Producción`;
 
 
             const inputsAves = document.querySelectorAll('.input-aves');
-            galponesData = {};
+            let tempGalponesData = {}; // Usar temporal para validar antes de guardar
             let todoValido = true;
             let totalAves = 0;
 
@@ -311,28 +454,26 @@
                     return;
                 }
                 
-                // Inicializa la estructura de datos o mantiene el estado actual
-                if (!galponesData[galponID]) {
-                    galponesData[galponID] = {
+                // Mantiene el estado de mortalidad si ya existe, si no, lo inicializa
+                const existingData = galponesData[galponID] || {
+                    initial: 0,
+                    current: 0,
+                    mortalidadAcumulada: 0,
+                    mortalidadHistory: {} 
+                };
+
+                // Si la cantidad inicial cambia, resetea el estado de mortalidad para evitar errores
+                if (existingData.initial !== cantidadAves) {
+                    tempGalponesData[galponID] = {
                         initial: cantidadAves,
                         current: cantidadAves,
                         mortalidadAcumulada: 0,
-                        mortalidadHistory: {} 
+                        mortalidadHistory: {}
                     };
                 } else {
-                    // Si ya existe, solo actualiza la cantidad inicial (si es necesario)
-                    // En un sistema real, esto sería más complejo, pero para este prototipo se mantiene simple
-                    if (galponesData[galponID].initial !== cantidadAves) {
-                        // Recalcula el estado actual si la base inicial cambia
-                        const factor = cantidadAves / galponesData[galponID].initial;
-                        galponesData[galponID].initial = cantidadAves;
-                        // Nota: El current y acumulada se resetearían o se ajustarían, lo reseteamos por simplicidad
-                        galponesData[galponID].current = cantidadAves;
-                        galponesData[galponID].mortalidadAcumulada = 0;
-                        galponesData[galponID].mortalidadHistory = {};
-                    }
+                    tempGalponesData[galponID] = existingData;
                 }
-                totalAves += galponesData[galponID].initial;
+                totalAves += tempGalponesData[galponID].initial;
             });
 
             if (!todoValido) {
@@ -341,27 +482,15 @@
                 return;
             }
 
-            // Actualizar los menús desplegables (Secciones 2 y 3)
-            const selectGalponPeso = document.getElementById('galpon');
-            const selectGalponMort = document.getElementById('galpon_mortalidad');
-            
-            [selectGalponPeso, selectGalponMort].forEach(select => {
-                select.innerHTML = ''; 
-                for (const galponID in galponesData) {
-                    const avesActuales = galponesData[galponID].current.toLocaleString();
-                    const option = document.createElement('option');
-                    option.value = galponID;
-                    option.textContent = `${galponID} (Actualmente: ${avesActuales} aves)`;
-                    select.appendChild(option);
-                }
-                select.disabled = false;
-            });
+            galponesData = tempGalponesData; // Aplicar cambios
+            guardarDatosEnLocalStorage(); // Guardar en LocalStorage
+            actualizarSelectoresGalpones(); // Actualizar menús desplegables
 
             document.getElementById('config-status').textContent = `✅ Configuración de ${farmName} guardada. Total de galpones: ${Object.keys(galponesData).length}. Total de aves iniciales: ${totalAves.toLocaleString()}.`;
             document.getElementById('config-status').style.color = 'green';
         }
 
-        // 3. Lógica para Registrar Mortalidad (Mismo código anterior)
+        // 3. Lógica para Registrar Mortalidad
         function registrarMortalidad() {
             const galpon = document.getElementById('galpon_mortalidad').value;
             const semana = parseInt(document.getElementById('semana_mortalidad').value);
@@ -411,7 +540,11 @@
                 mortAcumulada: mortAcumuladaPorc.toFixed(2)
             };
 
-            // 4. Mostrar Resultados y actualizar el select de galpones
+            // 4. Guardar datos en LocalStorage y refrescar selectores
+            guardarDatosEnLocalStorage();
+            actualizarSelectoresGalpones(); 
+            
+            // 5. Mostrar Resultados
             document.getElementById('res_mort_galpon').textContent = galpon;
             document.getElementById('res_mort_inicial').textContent = datosCalculadosMortalidad.inicial;
             document.getElementById('res_mort_semana_num').textContent = datosCalculadosMortalidad.muertasSemana;
@@ -420,12 +553,9 @@
             document.getElementById('res_mort_actual').textContent = datosCalculadosMortalidad.actual;
             document.getElementById('resultados_mortalidad').style.display = 'block';
             document.getElementById('btn-guardar-mortalidad').style.display = 'inline-block';
-
-            // 5. Refrescar el estado en el menú de Peso (Sección 2)
-            guardarConfiguracion(); 
         }
 
-        // 4. Lógica para Calcular Crecimiento (Mismo código anterior)
+        // 4. Lógica para Calcular Crecimiento
         function calcularCrecimiento() {
             const galpon = document.getElementById('galpon').value;
             const semana = parseInt(document.getElementById('semana').value);
@@ -453,7 +583,7 @@
             const diferenciaGramos = pesoPromedioReal - pesoEstandar;
             const porcentajeSubida = (diferenciaGramos / pesoEstandar) * 100;
 
-            // Almacenar resultados para PDF
+            // Almacenar resultados para PDF (y persisten al guardarDatosEnLocalStorage)
             datosCalculadosPeso = {
                 galpon,
                 avesActuales: data.current.toLocaleString(),
@@ -469,7 +599,7 @@
             document.getElementById('res_aves_actuales').textContent = datosCalculadosPeso.avesActuales;
             document.getElementById('res_semana').textContent = datosCalculadosPeso.semana;
             document.getElementById('promedio_real').textContent = datosCalculadosPeso.promedioReal;
-            document.getElementById('promedio_estandar').textContent = datosCalculadosPeso.estandar;
+            document.getElementById('promedio_estandar').textContent = pesoEstandar;
             document.getElementById('diferencia_gramos').textContent = datosCalculadosPeso.diferencia;
             
             const porcentajeElement = document.getElementById('porcentaje_subida');
@@ -486,7 +616,7 @@
             document.getElementById('btn-guardar').style.display = 'inline-block';
         }
 
-        // 5. Lógica para Generar PDF de Peso (ACTUALIZADA con farmName)
+        // 5. Lógica para Generar PDF de Peso
         function generarPDFPeso() {
             if (Object.keys(datosCalculadosPeso).length === 0) {
                 alert('Primero debe realizar un cálculo de peso.');
@@ -499,7 +629,7 @@
             let linea = 15;
 
             doc.setFontSize(16);
-            doc.text(`Reporte de Pesaje - ${farmName}`, margen, linea); // Usa farmName
+            doc.text(`Reporte de Pesaje - ${farmName}`, margen, linea); 
             linea += 7;
             doc.setFontSize(10);
             doc.text(`Fecha del Reporte: ${new Date().toLocaleDateString()}`, margen, linea);
@@ -532,7 +662,7 @@
             doc.save(nombreArchivo);
         }
 
-        // 6. Lógica para Generar PDF de Mortalidad (ACTUALIZADA con farmName)
+        // 6. Lógica para Generar PDF de Mortalidad
         function generarPDFMortalidad() {
             if (Object.keys(datosCalculadosMortalidad).length === 0) {
                 alert('Primero debe registrar la mortalidad.');
@@ -545,7 +675,7 @@
             let linea = 15;
 
             doc.setFontSize(16);
-            doc.text(`Reporte de Mortalidad Semanal - ${farmName}`, margen, linea); // Usa farmName
+            doc.text(`Reporte de Mortalidad Semanal - ${farmName}`, margen, linea); 
             linea += 7;
             doc.setFontSize(10);
             doc.text(`Fecha del Registro: ${new Date().toLocaleDateString()}`, margen, linea);
@@ -575,6 +705,133 @@
             doc.text(`AVES VIVAS ACTUALES: ${data.actual}`, margen, linea);
             
             const nombreArchivo = `Reporte_Mortalidad_${data.galpon}_Semana_${data.semana}.pdf`;
+            doc.save(nombreArchivo);
+        }
+
+        // 7. Función para generar el Reporte COMPLETO de la Granja
+        function generarReporteCompletoPDF() {
+            if (Object.keys(galponesData).length === 0) {
+                alert('Primero debe configurar y guardar la información de al menos un galpón.');
+                return;
+            }
+
+            const doc = new jsPDF();
+            const margen = 15;
+            let linea = 15;
+            const anchoMax = 180;
+
+            // --- ENCABEZADO PRINCIPAL ---
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text(`REPORTE DE PRODUCCIÓN COMPLETO - ${farmName}`, margen, linea);
+            linea += 10;
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text(`Fecha de Generación: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, margen, linea);
+            linea += 7;
+            doc.line(margen, linea, 195, linea); 
+            linea += 10;
+
+            // --- RESUMEN POR GALPÓN ---
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text('RESUMEN DE ESTADO DE GALPONES:', margen, linea);
+            linea += 5;
+
+            for (const galponID in galponesData) {
+                const data = galponesData[galponID];
+                
+                // Manejo de página si no hay espacio
+                if (linea > 270) {
+                    doc.addPage();
+                    linea = 15;
+                }
+
+                linea += 5;
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text(`==> Galpón ${galponID}`, margen, linea);
+                linea += 7;
+                
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+
+                // Detalles del Galpón
+                doc.text(`• Aves Iniciales del Lote: ${data.initial.toLocaleString()} aves`, margen, linea);
+                linea += 6;
+                doc.text(`• Mortalidad Acumulada: ${data.mortalidadAcumulada.toLocaleString()} aves`, margen, linea);
+                linea += 6;
+                
+                const mortPorc = (data.mortalidadAcumulada / data.initial) * 100;
+                doc.text(`• Porcentaje de Mortalidad Acumulada: ${mortPorc.toFixed(2)}%`, margen, linea);
+                linea += 6;
+
+                doc.setFont(undefined, 'bold');
+                doc.text(`• Aves Vivas Actuales: ${data.current.toLocaleString()} aves`, margen, linea);
+                doc.setFont(undefined, 'normal');
+                linea += 8;
+
+                // Historial de Mortalidad
+                const historiaMort = Object.entries(data.mortalidadHistory)
+                                        .map(([semana, muertas]) => `S${semana}: ${muertas.toLocaleString()} muertas`)
+                                        .join(' | ');
+
+                if (historiaMort) {
+                    doc.text(`• Historial Semanal de Mortalidad: ${historiaMort}`, margen, linea);
+                    linea += 6;
+                } else {
+                    doc.text(`• Historial Semanal de Mortalidad: (No hay registros de mortalidad)`, margen, linea);
+                    linea += 6;
+                }
+                
+                doc.line(margen, linea, margen + anchoMax, linea); // Separador de galpones
+                linea += 5;
+            }
+            
+            // --- RESUMEN DE ÚLTIMOS CÁLCULOS ESPECÍFICOS ---
+            linea += 5;
+            if (linea > 270) {
+                doc.addPage();
+                linea = 15;
+            }
+
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text('RESUMEN DE ÚLTIMOS CÁLCULOS (Referenciales):', margen, linea);
+            linea += 8;
+
+            if (Object.keys(datosCalculadosPeso).length > 0) {
+                doc.setFontSize(11);
+                doc.text('ÚLTIMO REPORTE DE PESO:', margen, linea);
+                linea += 6;
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                doc.text(`Galpón: ${datosCalculadosPeso.galpon} | Semana: ${datosCalculadosPeso.semana}`, margen, linea);
+                linea += 6;
+                doc.text(`Peso Promedio Real: ${datosCalculadosPeso.promedioReal}g | Crecimiento vs. Estándar: ${datosCalculadosPeso.porcentaje}%`, margen, linea);
+                linea += 8;
+            } else {
+                doc.setFontSize(10);
+                doc.text('No hay un cálculo de peso reciente guardado.', margen, linea);
+                linea += 8;
+            }
+
+            if (Object.keys(datosCalculadosMortalidad).length > 0) {
+                doc.setFontSize(11);
+                doc.text('ÚLTIMO REPORTE DE MORTALIDAD:', margen, linea);
+                linea += 6;
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                doc.text(`Galpón: ${datosCalculadosMortalidad.galpon} | Semana: ${datosCalculadosMortalidad.semana}`, margen, linea);
+                linea += 6;
+                doc.text(`Mortalidad Semanal: ${datosCalculadosMortalidad.mortSemanal}% | Acumulada: ${datosCalculadosMortalidad.mortAcumulada}%`, margen, linea);
+            } else {
+                doc.setFontSize(10);
+                doc.text('No hay un registro de mortalidad reciente guardado.', margen, linea);
+            }
+
+
+            const nombreArchivo = `Reporte_Completo_${farmName.replace(/ /g, '_')}_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`;
             doc.save(nombreArchivo);
         }
     </script>
